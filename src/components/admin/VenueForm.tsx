@@ -10,9 +10,10 @@ interface VenueFormProps {
   onCancel: () => void;
 }
 
-interface CourtConfig {
-  count: number;
+interface Court {
+  number: string;
   type: 'outdoor_surface' | 'gym' | 'sport_court' | 'other';
+  isIndoor: boolean;
 }
 
 export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps) {
@@ -24,8 +25,8 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
     state: venue?.state || '',
     zip: venue?.zip || '',
     description: venue?.description || '',
-    indoorCourts: { count: 0, type: 'gym' as const },
-    outdoorCourts: { count: 0, type: 'outdoor_surface' as const }
+    indoorCourts: [] as Court[],
+    outdoorCourts: [] as Court[]
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,33 +92,20 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
       }
 
       // Create courts array
-      const courts = [];
-      let courtNumber = 1;
-
-      console.log('Preparing courts data:', {
-        indoorCourts: formData.indoorCourts,
-        outdoorCourts: formData.outdoorCourts
-      });
-
-      // Add indoor courts
-      for (let i = 0; i < formData.indoorCourts.count; i++) {
-        courts.push({
+      const courts = [
+        ...formData.indoorCourts.map(court => ({
           venue_id: venueId,
-          court_number: courtNumber++,
-          court_type: formData.indoorCourts.type,
+          court_number: parseInt(court.number),
+          court_type: court.type,
           is_indoor: true
-        });
-      }
-
-      // Add outdoor courts
-      for (let i = 0; i < formData.outdoorCourts.count; i++) {
-        courts.push({
+        })),
+        ...formData.outdoorCourts.map(court => ({
           venue_id: venueId,
-          court_number: courtNumber++,
-          court_type: formData.outdoorCourts.type,
+          court_number: parseInt(court.number),
+          court_type: court.type,
           is_indoor: false
-        });
-      }
+        }))
+      ];
 
       // Insert courts if there are any
       if (courts.length > 0) {
@@ -143,19 +131,37 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
     }
   };
 
-  const updateCourtCount = (type: 'indoor' | 'outdoor', increment: boolean) => {
-    const field = type === 'indoor' ? 'indoorCourts' : 'outdoorCourts';
-    const currentCount = formData[field].count;
-    const newCount = increment 
-      ? Math.min(currentCount + 1, 99)
-      : Math.max(currentCount - 1, 0);
-
+  const addCourt = (type: 'indoor' | 'outdoor') => {
+    const courts = type === 'indoor' ? formData.indoorCourts : formData.outdoorCourts;
+    const newCourt: Court = {
+      number: '',
+      type: 'gym',
+      isIndoor: type === 'indoor'
+    };
+    
     setFormData({
       ...formData,
-      [field]: {
-        ...formData[field],
-        count: newCount
-      }
+      [type === 'indoor' ? 'indoorCourts' : 'outdoorCourts']: [...courts, newCourt]
+    });
+  };
+
+  const removeCourt = (type: 'indoor' | 'outdoor', index: number) => {
+    const courts = type === 'indoor' ? formData.indoorCourts : formData.outdoorCourts;
+    setFormData({
+      ...formData,
+      [type === 'indoor' ? 'indoorCourts' : 'outdoorCourts']: courts.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateCourt = (type: 'indoor' | 'outdoor', index: number, updates: Partial<Court>) => {
+    const courts = type === 'indoor' ? formData.indoorCourts : formData.outdoorCourts;
+    const updatedCourts = courts.map((court, i) => 
+      i === index ? { ...court, ...updates } : court
+    );
+    
+    setFormData({
+      ...formData,
+      [type === 'indoor' ? 'indoorCourts' : 'outdoorCourts']: updatedCourts
     });
   };
 
@@ -267,82 +273,96 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
 
         <div className="space-y-6">
           <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium mb-4">Indoor Courts</h3>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => updateCourtCount('indoor', false)}
-                  className="p-2 text-gray-600 hover:text-blue-600"
-                >
-                  <Minus size={20} />
-                </button>
-                <span className="w-12 text-center font-medium">{formData.indoorCourts.count}</span>
-                <button
-                  type="button"
-                  onClick={() => updateCourtCount('indoor', true)}
-                  className="p-2 text-gray-600 hover:text-blue-600"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
-              <select
-                value={formData.indoorCourts.type}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  indoorCourts: {
-                    ...formData.indoorCourts,
-                    type: e.target.value as CourtConfig['type']
-                  }
-                })}
-                className="rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Indoor Courts</h3>
+              <button
+                type="button"
+                onClick={() => addCourt('indoor')}
+                className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                {courtTypeOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                <Plus size={16} className="mr-1" /> Add Court
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {formData.indoorCourts.map((court, index) => (
+                <div key={index} className="flex items-center gap-4 bg-white p-3 rounded-lg">
+                  <input
+                    type="number"
+                    value={court.number}
+                    onChange={(e) => updateCourt('indoor', index, { number: e.target.value })}
+                    placeholder="Court #"
+                    className="w-24 rounded-lg border-gray-300"
+                  />
+                  <select
+                    value={court.type}
+                    onChange={(e) => updateCourt('indoor', index, { 
+                      type: e.target.value as Court['type']
+                    })}
+                    className="rounded-lg border-gray-300"
+                  >
+                    {courtTypeOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeCourt('indoor', index)}
+                    className="p-2 text-red-600 hover:text-red-700"
+                  >
+                    <Minus size={16} />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium mb-4">Outdoor Courts</h3>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => updateCourtCount('outdoor', false)}
-                  className="p-2 text-gray-600 hover:text-blue-600"
-                >
-                  <Minus size={20} />
-                </button>
-                <span className="w-12 text-center font-medium">{formData.outdoorCourts.count}</span>
-                <button
-                  type="button"
-                  onClick={() => updateCourtCount('outdoor', true)}
-                  className="p-2 text-gray-600 hover:text-blue-600"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
-              <select
-                value={formData.outdoorCourts.type}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  outdoorCourts: {
-                    ...formData.outdoorCourts,
-                    type: e.target.value as CourtConfig['type']
-                  }
-                })}
-                className="rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Outdoor Courts</h3>
+              <button
+                type="button"
+                onClick={() => addCourt('outdoor')}
+                className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                {courtTypeOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                <Plus size={16} className="mr-1" /> Add Court
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {formData.outdoorCourts.map((court, index) => (
+                <div key={index} className="flex items-center gap-4 bg-white p-3 rounded-lg">
+                  <input
+                    type="number"
+                    value={court.number}
+                    onChange={(e) => updateCourt('outdoor', index, { number: e.target.value })}
+                    placeholder="Court #"
+                    className="w-24 rounded-lg border-gray-300"
+                  />
+                  <select
+                    value={court.type}
+                    onChange={(e) => updateCourt('outdoor', index, { 
+                      type: e.target.value as Court['type']
+                    })}
+                    className="rounded-lg border-gray-300"
+                  >
+                    {courtTypeOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeCourt('outdoor', index)}
+                    className="p-2 text-red-600 hover:text-red-700"
+                  >
+                    <Minus size={16} />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
