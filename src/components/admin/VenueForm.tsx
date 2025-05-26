@@ -96,13 +96,13 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
         ...formData.indoorCourts.map(court => ({
           venue_id: venueId,
           court_number: parseInt(court.number),
-          court_type: court.type,
+          court_type: 'outdoor_surface', // Set default type
           is_indoor: true
         })),
         ...formData.outdoorCourts.map(court => ({
           venue_id: venueId,
           court_number: parseInt(court.number),
-          court_type: court.type,
+          court_type: 'outdoor_surface', // Set default type
           is_indoor: false
         }))
       ];
@@ -135,7 +135,7 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
     const courts = type === 'indoor' ? formData.indoorCourts : formData.outdoorCourts;
     const newCourt: Court = {
       number: '',
-      type: 'gym',
+      type: 'outdoor_surface', // Set default type
       isIndoor: type === 'indoor'
     };
     
@@ -164,13 +164,6 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
       [type === 'indoor' ? 'indoorCourts' : 'outdoorCourts']: updatedCourts
     });
   };
-
-  const courtTypeOptions = [
-    { value: 'outdoor_surface', label: 'Outdoor Surface' },
-    { value: 'gym', label: 'Gym' },
-    { value: 'sport_court', label: 'Sport Court' },
-    { value: 'other', label: 'Other' }
-  ];
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
@@ -294,19 +287,6 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
                     placeholder="Court #"
                     className="w-24 rounded-lg border-gray-300"
                   />
-                  <select
-                    value={court.type}
-                    onChange={(e) => updateCourt('indoor', index, { 
-                      type: e.target.value as Court['type']
-                    })}
-                    className="rounded-lg border-gray-300"
-                  >
-                    {courtTypeOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
                   <button
                     type="button"
                     onClick={() => removeCourt('indoor', index)}
@@ -341,19 +321,6 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
                     placeholder="Court #"
                     className="w-24 rounded-lg border-gray-300"
                   />
-                  <select
-                    value={court.type}
-                    onChange={(e) => updateCourt('outdoor', index, { 
-                      type: e.target.value as Court['type']
-                    })}
-                    className="rounded-lg border-gray-300"
-                  >
-                    {courtTypeOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
                   <button
                     type="button"
                     onClick={() => removeCourt('outdoor', index)}
