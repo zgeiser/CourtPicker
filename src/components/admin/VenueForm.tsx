@@ -96,13 +96,13 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
         ...formData.indoorCourts.map(court => ({
           venue_id: venueId,
           court_number: parseInt(court.number),
-          court_type: 'outdoor_surface', // Set default type
+          court_type: court.type,
           is_indoor: true
         })),
         ...formData.outdoorCourts.map(court => ({
           venue_id: venueId,
           court_number: parseInt(court.number),
-          court_type: 'outdoor_surface', // Set default type
+          court_type: court.type,
           is_indoor: false
         }))
       ];
@@ -135,7 +135,7 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
     const courts = type === 'indoor' ? formData.indoorCourts : formData.outdoorCourts;
     const newCourt: Court = {
       number: '',
-      type: 'outdoor_surface', // Set default type
+      type: 'outdoor_surface', // Default type
       isIndoor: type === 'indoor'
     };
     
@@ -287,6 +287,18 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
                     placeholder="Court #"
                     className="w-24 rounded-lg border-gray-300"
                   />
+                  <select
+                    value={court.type}
+                    onChange={(e) => updateCourt('indoor', index, { 
+                      type: e.target.value as Court['type']
+                    })}
+                    className="rounded-lg border-gray-300"
+                  >
+                    <option value="outdoor_surface">Outdoor Surface</option>
+                    <option value="gym">Gym</option>
+                    <option value="sport_court">Sport Court</option>
+                    <option value="other">Other</option>
+                  </select>
                   <button
                     type="button"
                     onClick={() => removeCourt('indoor', index)}
@@ -321,6 +333,18 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
                     placeholder="Court #"
                     className="w-24 rounded-lg border-gray-300"
                   />
+                  <select
+                    value={court.type}
+                    onChange={(e) => updateCourt('outdoor', index, { 
+                      type: e.target.value as Court['type']
+                    })}
+                    className="rounded-lg border-gray-300"
+                  >
+                    <option value="outdoor_surface">Outdoor Surface</option>
+                    <option value="gym">Gym</option>
+                    <option value="sport_court">Sport Court</option>
+                    <option value="other">Other</option>
+                  </select>
                   <button
                     type="button"
                     onClick={() => removeCourt('outdoor', index)}
