@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Venue } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +30,51 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch existing courts when editing a venue
+  useEffect(() => {
+    if (!venue) return;
+
+    async function fetchCourts() {
+      try {
+        const { data: courts, error: courtsError } = await supabase
+          .from('courts')
+          .select('*')
+          .eq('venue_id', venue.id)
+          .order('court_number');
+
+        if (courtsError) throw courtsError;
+
+        const indoorCourts: Court[] = [];
+        const outdoorCourts: Court[] = [];
+
+        courts?.forEach(court => {
+          const courtData: Court = {
+            number: court.court_number.toString(),
+            type: court.court_type || 'outdoor_surface',
+            isIndoor: court.is_indoor
+          };
+
+          if (court.is_indoor) {
+            indoorCourts.push(courtData);
+          } else {
+            outdoorCourts.push(courtData);
+          }
+        });
+
+        setFormData(prev => ({
+          ...prev,
+          indoorCourts,
+          outdoorCourts
+        }));
+      } catch (err) {
+        console.error('Error fetching courts:', err);
+        setError('Failed to load court information');
+      }
+    }
+
+    fetchCourts();
+  }, [venue]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
