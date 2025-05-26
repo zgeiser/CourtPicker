@@ -36,6 +36,28 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
     if (!user) return;
 
     try {
+      // Validate court numbers
+      const allCourts = [...formData.indoorCourts, ...formData.outdoorCourts];
+      
+      // Check if any court numbers are empty
+      if (allCourts.some(court => !court.number.trim())) {
+        setError('All courts must have a number');
+        return;
+      }
+
+      // Check if all court numbers are positive integers
+      if (allCourts.some(court => parseInt(court.number) <= 0)) {
+        setError('Court numbers must be positive integers');
+        return;
+      }
+
+      // Check for duplicate court numbers
+      const courtNumbers = allCourts.map(court => parseInt(court.number));
+      if (new Set(courtNumbers).size !== courtNumbers.length) {
+        setError('Court numbers must be unique');
+        return;
+      }
+
       console.log('Starting venue submission process...', { isUpdate: !!venue });
       setLoading(true);
       setError(null);
@@ -91,7 +113,7 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
         console.log('New venue created with ID:', venueId);
       }
 
-      // Create courts array
+      // Create courts array with validated numbers
       const courts = [
         ...formData.indoorCourts.map(court => ({
           venue_id: venueId,
@@ -286,6 +308,8 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
                     onChange={(e) => updateCourt('indoor', index, { number: e.target.value })}
                     placeholder="Court #"
                     className="w-24 rounded-lg border-gray-300"
+                    min="1"
+                    required
                   />
                   <select
                     value={court.type}
@@ -332,6 +356,8 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
                     onChange={(e) => updateCourt('outdoor', index, { number: e.target.value })}
                     placeholder="Court #"
                     className="w-24 rounded-lg border-gray-300"
+                    min="1"
+                    required
                   />
                   <select
                     value={court.type}
