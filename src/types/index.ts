@@ -16,6 +16,8 @@ export interface Venue {
   description?: string;
   courtsCount?: number;
   avgRating?: number;
+  indoorCourts?: number;
+  outdoorCourts?: number;
 }
 
 export interface Court {

@@ -24,7 +24,7 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
     state: venue?.state || '',
     zip: venue?.zip || '',
     description: venue?.description || '',
-    indoorCourts: { count: 0, type: 'outdoor_surface' as const },
+    indoorCourts: { count: 0, type: 'gym' as const },
     outdoorCourts: { count: 0, type: 'outdoor_surface' as const }
   });
   const [loading, setLoading] = useState(false);
