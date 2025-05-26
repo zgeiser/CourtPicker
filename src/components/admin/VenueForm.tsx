@@ -76,36 +76,39 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
     fetchCourts();
   }, [venue]);
 
+  const validateCourts = () => {
+    const allCourts = [...formData.indoorCourts, ...formData.outdoorCourts];
+    
+    // Check if any court numbers are empty
+    if (allCourts.some(court => !court.number.trim())) {
+      throw new Error('All courts must have a number');
+    }
+
+    // Check if all court numbers are positive integers
+    if (allCourts.some(court => !Number.isInteger(Number(court.number)) || Number(court.number) <= 0)) {
+      throw new Error('Court numbers must be positive integers');
+    }
+
+    // Check for duplicate court numbers
+    const courtNumbers = allCourts.map(court => Number(court.number));
+    const uniqueNumbers = new Set(courtNumbers);
+    if (uniqueNumbers.size !== courtNumbers.length) {
+      throw new Error('Each court must have a unique number');
+    }
+
+    return courtNumbers;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     try {
-      // Validate court numbers
-      const allCourts = [...formData.indoorCourts, ...formData.outdoorCourts];
-      
-      // Check if any court numbers are empty
-      if (allCourts.some(court => !court.number.trim())) {
-        setError('All courts must have a number');
-        return;
-      }
-
-      // Check if all court numbers are positive integers
-      if (allCourts.some(court => parseInt(court.number) <= 0)) {
-        setError('Court numbers must be positive integers');
-        return;
-      }
-
-      // Check for duplicate court numbers
-      const courtNumbers = allCourts.map(court => parseInt(court.number));
-      if (new Set(courtNumbers).size !== courtNumbers.length) {
-        setError('Court numbers must be unique');
-        return;
-      }
-
-      console.log('Starting venue submission process...', { isUpdate: !!venue });
       setLoading(true);
       setError(null);
+
+      // Validate courts before proceeding
+      validateCourts();
 
       const venueData = {
         name: formData.name,
@@ -117,26 +120,10 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
         user_id: user.id
       };
 
-      console.log('Prepared venue data:', venueData);
       let venueId: string;
 
       if (venue) {
-        console.log('Updating existing venue:', venue.id);
-        
-        // First, delete all existing courts
-        console.log('Deleting existing courts for venue:', venue.id);
-        const { error: deleteError } = await supabase
-          .from('courts')
-          .delete()
-          .eq('venue_id', venue.id);
-
-        if (deleteError) {
-          console.error('Error deleting existing courts:', deleteError);
-          throw deleteError;
-        }
-        console.log('Successfully deleted existing courts');
-
-        // Then update the venue
+        // Update existing venue
         const { error: updateError } = await supabase
           .from('venues')
           .update(venueData)
@@ -144,8 +131,16 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
 
         if (updateError) throw updateError;
         venueId = venue.id;
+
+        // Delete existing courts
+        const { error: deleteError } = await supabase
+          .from('courts')
+          .delete()
+          .eq('venue_id', venue.id);
+
+        if (deleteError) throw deleteError;
       } else {
-        console.log('Creating new venue');
+        // Create new venue
         const { data: newVenue, error: insertError } = await supabase
           .from('venues')
           .insert([venueData])
@@ -155,10 +150,9 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
         if (insertError) throw insertError;
         if (!newVenue) throw new Error('Failed to create venue');
         venueId = newVenue.id;
-        console.log('New venue created with ID:', venueId);
       }
 
-      // Create courts array with validated numbers
+      // Prepare courts data
       const courts = [
         ...formData.indoorCourts.map(court => ({
           venue_id: venueId,
@@ -174,21 +168,17 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
         }))
       ];
 
-      // Insert courts if there are any
-      if (courts.length > 0) {
-        console.log('Inserting courts:', courts);
-        const { error: courtsError } = await supabase
+      // Insert courts one by one to prevent batch insert issues
+      for (const court of courts) {
+        const { error: courtError } = await supabase
           .from('courts')
-          .insert(courts);
+          .insert([court]);
 
-        if (courtsError) {
-          console.error('Error inserting courts:', courtsError);
-          throw courtsError;
+        if (courtError) {
+          throw new Error(`Failed to create court ${court.court_number}: ${courtError.message}`);
         }
-        console.log('Successfully inserted courts');
       }
 
-      console.log('Venue and courts saved successfully');
       onSuccess();
     } catch (err: any) {
       console.error('Error in handleSubmit:', err);
@@ -202,7 +192,7 @@ export default function VenueForm({ venue, onSuccess, onCancel }: VenueFormProps
     const courts = type === 'indoor' ? formData.indoorCourts : formData.outdoorCourts;
     const newCourt: Court = {
       number: '',
-      type: 'outdoor_surface', // Default type
+      type: 'outdoor_surface',
       isIndoor: type === 'indoor'
     };
     
